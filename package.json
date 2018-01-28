@@ -1,0 +1,13 @@
+{
+  "name": "openssl-cert",
+  "version": "1.0.0",
+  "description": "",
+  "main": "openssl-cert.js",
+  "author": "magicode",
+  "devDependencies": {
+    "mocha": "^2.3.4"
+  },
+  "dependencies": {
+    "nan": "^2.1.0"
+  }
+}
