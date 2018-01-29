@@ -50,7 +50,7 @@ class Cert: public ObjectWrap {
             const int argc = 1;
             v8::Local<v8::Value> argv[argc] = {info[0]};
             v8::Local<v8::Function> cons = Nan::New(constructor());
-            info.GetReturnValue().Set(cons->NewInstance(argc, argv));
+            info.GetReturnValue().Set(Nan::NewInstance(cons, argc, argv).ToLocalChecked());
         }
         
         v8::Local<v8::Value> val = info[0];
@@ -112,7 +112,7 @@ class Cert: public ObjectWrap {
         Nan::HandleScope();
         
         Cert* obj = ObjectWrap::Unwrap<Cert>(info.Holder()); 
-        // Extensions
+ 
         Local<Object> extensions = Nan::New<Object>();
         
         STACK_OF(X509_EXTENSION) *exts = obj->cert->cert_info->extensions;
@@ -124,23 +124,19 @@ class Cert: public ObjectWrap {
             num_of_exts = 0;
         }
         
-        // IFNEG_FAIL(num_of_exts, "error parsing number of X509v3 extensions.");
         
         for (index_of_exts = 0; index_of_exts < num_of_exts; index_of_exts++) {
-            X509_EXTENSION *ext = sk_X509_EXTENSION_value(exts, index_of_exts);
-            // IFNULL_FAIL(ext, "unable to extract extension from stack");
-            ASN1_OBJECT *obj = X509_EXTENSION_get_object(ext);
-            // IFNULL_FAIL(obj, "unable to extract ASN1 object from extension");
+            X509_EXTENSION *ext = sk_X509_EXTENSION_value(exts, index_of_exts); 
+            ASN1_OBJECT *obj = X509_EXTENSION_get_object(ext); 
         
-            BIO *ext_bio = BIO_new(BIO_s_mem());
-            // IFNULL_FAIL(ext_bio, "unable to allocate memory for extension value BIO");
+            BIO *ext_bio = BIO_new(BIO_s_mem()); 
             if (!X509V3_EXT_print(ext_bio, ext, 0, 0)) {
               M_ASN1_OCTET_STRING_print(ext_bio, ext->value);
             }
         
             BUF_MEM *bptr;
             BIO_get_mem_ptr(ext_bio, &bptr);
-            BIO_set_close(ext_bio, BIO_CLOSE);
+            (void) BIO_set_close(ext_bio, BIO_CLOSE);
         
             char *data = new char[bptr->length + 1];
             BUF_strlcpy(data, bptr->data, bptr->length + 1);
@@ -154,7 +150,6 @@ class Cert: public ObjectWrap {
         
             } else {
               const char *c_ext_name = OBJ_nid2ln(nid);
-              // IFNULL_FAIL(c_ext_name, "invalid X509v3 extension name");
               Nan::Set(extensions,NS((char*)c_ext_name),NS(data));
             }
             delete[] data;
@@ -227,7 +222,7 @@ class CertStore : public ObjectWrap {
             const int argc = 1;
             v8::Local<v8::Value> argv[argc] = {info[0]};
             v8::Local<v8::Function> cons = Nan::New(constructor());
-            info.GetReturnValue().Set(cons->NewInstance(argc, argv));
+            info.GetReturnValue().Set(Nan::NewInstance(cons, argc, argv).ToLocalChecked());
         }
         
         CertStore* obj = new CertStore();
@@ -259,6 +254,38 @@ class CertStore : public ObjectWrap {
         
         info.GetReturnValue().Set(Nan::New(true));
     }
+
+    static NAN_METHOD(LoadBundleCA){
+        Nan::HandleScope();
+          
+        CertStore* obj = ObjectWrap::Unwrap<CertStore>(info.Holder());
+        
+        X509 *cert = NULL;
+        unsigned char *data;
+		size_t data_len;
+		
+		if (node::Buffer::HasInstance(info[0])) {
+			data = (unsigned char *)node::Buffer::Data(info[0]);
+			data_len = node::Buffer::Length(info[0]);
+		} else
+			return Nan::ThrowError("first no buffer");
+			
+		BIO *bio = BIO_new_mem_buf(data, data_len);
+        
+        int countLoad = 0;
+        
+        while ((cert = PEM_read_bio_X509(bio, NULL, NULL, NULL))) {
+            X509_STORE_add_cert(obj->store, cert);
+            X509_free(cert);
+            countLoad++;
+        }
+        
+        BIO_free(bio);
+        
+        info.GetReturnValue().Set(Nan::New(countLoad));
+    }
+    
+
     
     static NAN_METHOD(Verify){
         Nan::HandleScope();
@@ -270,11 +297,10 @@ class CertStore : public ObjectWrap {
         
         Cert* firstCert = ObjectWrap::Unwrap<Cert>(info[0]->ToObject());
         
-        Local<Array> array = Local<Array>::Cast(info[1]); //args[0] holds the first argument
+        Local<Array> array = Local<Array>::Cast(info[1]);
 
         for (unsigned int i = 0; i < array->Length(); i++ ) {
             if (Nan::Has(array, i).FromJust()) {
-                //assuming the argument is an array of 'double' values, for any other type the following line will be changed to do the conversion
                 Cert* chainCert = ObjectWrap::Unwrap<Cert>(Nan::Get(array, i).ToLocalChecked()->ToObject());
                 if(chainCert->cert){
                     if(!untrusted)
@@ -324,6 +350,7 @@ class CertStore : public ObjectWrap {
         tpl->InstanceTemplate()->SetInternalFieldCount(1);
         
         SetPrototypeMethod(tpl, "addCert", AddCert); 
+        SetPrototypeMethod(tpl, "loadBundleCA", LoadBundleCA);
         SetPrototypeMethod(tpl, "verify", Verify); 
         
         constructor().Reset(Nan::GetFunction(tpl).ToLocalChecked());
