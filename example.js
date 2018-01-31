@@ -16,8 +16,8 @@ store.loadBundleCA(bundleCA);
 const cacheCertIntermediate = LRU({ max: 500 }); 
 
 function verifyCertSocket(socket,callback) {
-    if(1 && !socket.authorized){
-        if(1 && socket.authorizationError == 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'){
+    if(!socket.authorized){
+        if(socket.authorizationError == 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'){
             var currCert = socket.getPeerCertificate(true); 
             autoVerify(currCert,socket._host,callback);
         }else{
