@@ -18,25 +18,9 @@ const options = {
 };
 
 const req = https.request(options, (res) => {
-    
-    function start(){
-        console.log('statusCode:', res.statusCode);
-        console.log('headers:', res.headers);
-    
-        res.on('data', (d) => {
-            process.stdout.write(d);
-        });
-    }
-    
-    function error(){
-        throw new Error('e');
-    }
-
-    
     verifyCertSocket(res.socket,(err,value) =>{
         console.log("out",err,value);
     });
-
 });
 
 req.on('error', (e) => {
