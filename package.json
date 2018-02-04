@@ -2,7 +2,7 @@
   "name": "openssl-cert",
   "version": "1.0.0",
   "description": "",
-  "main": "openssl-cert.js",
+  "main": "index.js",
   "author": "magicode",
   "devDependencies": {
     "mocha": "^2.3.4"
