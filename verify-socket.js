@@ -12,11 +12,20 @@ function createVerifySocket(){
     
     const cacheCertIntermediate = LRU({ max: 500 }); 
     
-    function verifyCertSocket(socket,callback) {
+    function verifyCertSocket(socket,hostname,callback) {
+        
+        if(typeof hostname === 'function'){
+            callback = hostname;
+            hostname = null;
+        }
+        
         if(!socket.authorized){
             if(socket.authorizationError == 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'){
-                var currCert = socket.getPeerCertificate(true); 
-                autoVerify(currCert,socket._host,callback);
+                
+                 
+                var currCert = socket.getPeerCertificate(true);
+                console.log("SOCKET:::" ,socket);
+                autoVerify(currCert,hostname || socket._host,callback);
             }else{
                 callback(socket.authorizationError,false);
             }
@@ -150,6 +159,7 @@ function createVerifySocket(){
     
     verifyCertSocket.store = store;
     verifyCertSocket.cacheCertIntermediate = cacheCertIntermediate;
+    verifyCertSocket.autoVerify = autoVerify;
     
     return verifyCertSocket;
 }
